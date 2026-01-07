@@ -1,5 +1,9 @@
 import * as THREE from 'three';
 import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import anime from 'animejs';
 
 // 1. Scene Setup
@@ -14,6 +18,27 @@ const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.setPixelRatio(window.devicePixelRatio);
 document.body.appendChild(renderer.domElement);
+
+// Post-processing
+const composer = new EffectComposer(renderer);
+const renderPass = new RenderPass(scene, camera);
+composer.addPass(renderPass);
+
+const bloomPass = new UnrealBloomPass(new THREE.Vector2(window.innerWidth, window.innerHeight), 1.5, 0.4, 0.85);
+bloomPass.threshold = 0.1;
+bloomPass.strength = 0.15; // Subtle retro glow
+bloomPass.radius = 0.5;
+composer.addPass(bloomPass);
+
+const outputPass = new OutputPass();
+composer.addPass(outputPass);
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    composer.setSize(window.innerWidth, window.innerHeight);
+});
 
 // 2. Load Font & Create Text
 let rings = [];
@@ -46,13 +71,28 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     // Create Ring
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
-    const ringGeometry = new THREE.RingGeometry((totalWidth * 0.6) - 0.1, (totalWidth * 0.6) + 0.1, 64, 1, 0, Math.PI * 1.8);
+    const ringGeometry = new THREE.RingGeometry((totalWidth * 0.6) - 0.1, (totalWidth * 0.6) + 0.1, 64);
     const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x22ff22, side: THREE.DoubleSide });
+    const segmentMaterial = new THREE.MeshBasicMaterial({ color: 0x2222ff, side: THREE.DoubleSide });
     
     const ringGroup = new THREE.Group();
+    const blueSegments = [];
     for (let i = 0; i < 3; i++) {
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        // Space gaps 120 degrees apart (0, 120, 240)
+        
+        // Add random blue segments
+        const numSegments = Math.floor(Math.random() * 4) + 2; 
+        for (let j = 0; j < numSegments; j++) {
+            const len = (Math.random() * 0.5) + 0.2;
+            const start = Math.random() * Math.PI * 2;
+            const segGeo = new THREE.RingGeometry((totalWidth * 0.6) - 0.11, (totalWidth * 0.6) + 0.11, 32, 1, start, len);
+            const segMesh = new THREE.Mesh(segGeo, segmentMaterial);
+            segMesh.position.z = 0.002; // Slightly above
+            segMesh.visible = false;
+            blueSegments.push(segMesh);
+            ring.add(segMesh);
+        }
+
         ring.rotation.z = i * (Math.PI * 2 / 3);
         ring.userData = { speed: 0 };
         rings.push(ring);
@@ -73,7 +113,10 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         y: 0,
         duration: duration,
         delay: delay,
-        easing: easing
+        easing: easing,
+        complete: function() {
+            blueSegments.forEach(s => s.visible = true);
+        }
     });
 
     // Spread rings after rotation
@@ -149,7 +192,7 @@ function animate() {
         ring.rotation.z += ring.userData.speed;
     });
 
-    renderer.render(scene, camera);
+    composer.render();
 }
 
 animate();
