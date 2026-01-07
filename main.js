@@ -11,8 +11,8 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000); // Pure black
 
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-const distance = 12; // Distance from center
-camera.position.z = distance;
+const cameraParams = { distance: 256 }; // Start distant
+camera.position.z = cameraParams.distance;
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -72,8 +72,17 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
     const ringGeometry = new THREE.RingGeometry((totalWidth * 0.6) - 0.1, (totalWidth * 0.6) + 0.1, 64);
-    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x22ff22, side: THREE.DoubleSide });
-    const segmentMaterial = new THREE.MeshBasicMaterial({ color: 0x2222ff, side: THREE.DoubleSide });
+    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x22ff22, side: THREE.DoubleSide, transparent: true, opacity: 0 });
+    const segmentMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x2222ff, 
+        side: THREE.DoubleSide, 
+        transparent: true, 
+        opacity: 0, 
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -4,
+        polygonOffsetUnits: -4
+    });
     
     const ringGroup = new THREE.Group();
     const blueSegments = [];
@@ -87,7 +96,8 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
             const start = Math.random() * Math.PI * 2;
             const segGeo = new THREE.RingGeometry((totalWidth * 0.6) - 0.11, (totalWidth * 0.6) + 0.11, 32, 1, start, len);
             const segMesh = new THREE.Mesh(segGeo, segmentMaterial);
-            segMesh.position.z = 0.002; // Slightly above
+            segMesh.position.z = 0.001; // Slightly above
+            segMesh.renderOrder = 1; // Force draw after ring
             segMesh.visible = false;
             blueSegments.push(segMesh);
             ring.add(segMesh);
@@ -104,19 +114,41 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     scene.add(ringGroup);
 
     // Animation Group
+    const introDuration = 400;
     const duration = 2000;
-    const delay = 500;
+    const delay = 500 + introDuration; // Wait for intro to finish
     const easing = 'easeOutExpo';
+
+    // Intro: Fade In
+    anime({
+        targets: '#overlay',
+        opacity: 0,
+        duration: introDuration,
+        easing: 'linear'
+    });
+
+    // Intro: Camera Approach
+    anime({
+        targets: cameraParams,
+        distance: 12, // Target distance
+        duration: introDuration,
+        easing: 'easeOutQuart' // Fast approach then stop
+    });
+
+    // Reveal Rings (Fade In)
+    anime({
+        targets: ringMaterial,
+        opacity: 1,
+        duration: 100,
+        delay: delay,
+        easing: 'linear'
+    });
 
     anime({
         targets: ringGroup.rotation,
         y: 0,
         duration: duration,
         delay: delay,
-        easing: easing,
-        complete: function() {
-            blueSegments.forEach(s => s.visible = true);
-        }
     });
 
     // Spread rings after rotation
@@ -127,6 +159,18 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         duration: duration,
         delay: delay + duration, // Wait for rotation to finish
         easing: easing
+    });
+
+    // Reveal Blue Segments (Fade In)
+    anime({
+        targets: segmentMaterial,
+        opacity: 1,
+        duration: 100,
+        delay: delay + duration,
+        easing: 'linear',
+        begin: function() {
+            blueSegments.forEach(s => s.visible = true);
+        }
     });
 
     // Pop rings forward (Z-axis)
@@ -182,9 +226,9 @@ function animate() {
     const maxAngle = 10 * (Math.PI / 180);
     
     // Move camera based on mouse position
-    camera.position.x = distance * Math.sin(mouseX * maxAngle);
-    camera.position.y = distance * Math.sin(mouseY * maxAngle);
-    camera.position.z = distance * Math.cos(mouseX * maxAngle) * Math.cos(mouseY * maxAngle);
+    camera.position.x = cameraParams.distance * Math.sin(mouseX * maxAngle);
+    camera.position.y = cameraParams.distance * Math.sin(mouseY * maxAngle);
+    camera.position.z = cameraParams.distance * Math.cos(mouseX * maxAngle) * Math.cos(mouseY * maxAngle);
     
     camera.lookAt(0, 0, 0);
 
