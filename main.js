@@ -6,6 +6,14 @@ import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js'
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import anime from 'animejs';
 
+// Hide Scrollbar
+const style = document.createElement('style');
+style.textContent = `
+    ::-webkit-scrollbar { display: none; }
+    html, body, #scroll-container { scrollbar-width: none; -ms-overflow-style: none; }
+`;
+document.head.appendChild(style);
+
 // 1. Scene Setup
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000); // Pure black
