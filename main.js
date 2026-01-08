@@ -41,37 +41,30 @@ window.addEventListener('resize', () => {
 });
 
 // Background Grid
-const gridGeometry = new THREE.BufferGeometry();
-const gridVertices = [];
-const gridRange = 600;
-const gridStep = 15;
-
-for (let x = -gridRange; x <= gridRange; x += gridStep) {
-    for (let y = -gridRange; y <= gridRange; y += gridStep) {
-        gridVertices.push(x, y, -50);
-    }
-}
-gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(gridVertices, 3));
+const gridGeometry = new THREE.PlaneGeometry(1200, 1200);
 
 const gridCanvas = document.createElement('canvas');
-gridCanvas.width = 32;
-gridCanvas.height = 32;
+gridCanvas.width = 64;
+gridCanvas.height = 64;
 const gridCtx = gridCanvas.getContext('2d');
 gridCtx.fillStyle = '#FFFFFF';
-gridCtx.fillRect(15, 4, 2, 24); // Vertical
-gridCtx.fillRect(4, 15, 24, 2); // Horizontal
+gridCtx.fillRect(32, 26, 1, 12); // Vertical
+gridCtx.fillRect(26, 32, 12, 1); // Horizontal
 const gridTexture = new THREE.CanvasTexture(gridCanvas);
 gridTexture.magFilter = THREE.NearestFilter;
+gridTexture.wrapS = THREE.RepeatWrapping;
+gridTexture.wrapT = THREE.RepeatWrapping;
+gridTexture.repeat.set(80, 80); // 1200 / 15 = 80 repeats
 
-const gridMaterial = new THREE.PointsMaterial({
+const gridMaterial = new THREE.MeshBasicMaterial({
     map: gridTexture,
-    color: 0xffff00,
-    size: 3,
+    color: 0x808000,
     transparent: true,
-    opacity: 0.4,
-    sizeAttenuation: true
+    opacity: 0.4
 });
-const bgGrid = new THREE.Points(gridGeometry, gridMaterial);
+const bgGrid = new THREE.Mesh(gridGeometry, gridMaterial);
+bgGrid.position.z = -50;
+bgGrid.visible = false;
 scene.add(bgGrid);
 
 // 2. Load Font & Create Text
@@ -278,6 +271,16 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         duration: duration,
         delay: delay + duration, // Wait for rotation to finish
         easing: easing
+    });
+
+    // Reveal Grid
+    anime({
+        targets: gridMaterial,
+        opacity: [0, 0.4],
+        duration: duration,
+        delay: delay + duration,
+        easing: easing,
+        begin: () => { bgGrid.visible = true; }
     });
 
     // Pop rings forward (Z-axis)
