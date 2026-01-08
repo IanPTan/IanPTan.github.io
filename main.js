@@ -85,10 +85,11 @@ function createRectTexture() {
     for (let i = 0; i < size; i++) {
         const stride = i * 4;
         if (Math.random() > 0.5) {
-            // Uniform Dark Blue
+            // Random Dim Blue (Max ~32)
+            const blue = 10 + Math.floor(Math.random() * 22);
             data[stride] = 0;
             data[stride + 1] = 0;
-            data[stride + 2] = 64;
+            data[stride + 2] = blue;
             data[stride + 3] = 255;
         } else {
             // Transparent
@@ -128,8 +129,8 @@ function spawnBgRect(initialX) {
     rect.scale.set(w, h, 1);
 
     // Position (Start Left, Move Right)
-    rect.position.x = initialX !== undefined ? initialX : -175;
-    rect.position.y = (Math.random() - 0.5) * 150;
+    rect.position.x = initialX !== undefined ? initialX : -262.5;
+    rect.position.y = (Math.random() - 0.5) * 225;
     rect.position.z = -60 - Math.random() * 60; // Behind grid (-50)
 
     rect.userData = { speed: 0.1 + Math.random() * 0.2 };
@@ -356,8 +357,8 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
             });
 
             const introRects = [];
-            for (let i = 0; i < 30; i++) {
-                const rect = spawnBgRect((Math.random() - 0.5) * 350);
+            for (let i = 0; i < 60; i++) {
+                const rect = spawnBgRect((Math.random() - 0.5) * 525);
                 rect.userData.targetOpacity = rect.material.opacity;
                 rect.material.opacity = 0;
                 introRects.push(rect);
@@ -365,8 +366,8 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
             anime({
                 targets: introRects.map(r => r.material),
                 opacity: (el, i) => introRects[i].userData.targetOpacity,
-                duration: 800,
-                delay: (el, i) => i * 50,
+                duration: 50,
+                delay: (el, i) => i * 3,
                 easing: easing
             });
         }
@@ -446,12 +447,12 @@ function animate() {
     });
 
     // Update Background Rects
-    if (bgRectGroup.visible && Math.random() < 0.02) spawnBgRect();
+    if (bgRectGroup.visible && Math.random() < 0.04) spawnBgRect();
 
     for (let i = bgRects.length - 1; i >= 0; i--) {
         const rect = bgRects[i];
         rect.position.x += rect.userData.speed;
-        if (rect.position.x > 175) {
+        if (rect.position.x > 262.5) {
             bgRectGroup.remove(rect);
             if (rect.material.map) rect.material.map.dispose();
             rect.material.dispose();
