@@ -47,6 +47,7 @@ const gridCanvas = document.createElement('canvas');
 gridCanvas.width = 64;
 gridCanvas.height = 64;
 const gridCtx = gridCanvas.getContext('2d');
+gridCtx.clearRect(0, 0, 64, 64); // Ensure background is transparent
 gridCtx.fillStyle = '#FFFFFF';
 gridCtx.fillRect(32, 26, 1, 12); // Vertical
 gridCtx.fillRect(26, 32, 12, 1); // Horizontal
@@ -60,7 +61,8 @@ const gridMaterial = new THREE.MeshBasicMaterial({
     map: gridTexture,
     color: 0x808000,
     transparent: true,
-    opacity: 0.4
+    opacity: 0.4,
+    depthWrite: false // Prevents the transparent parts from blocking objects behind
 });
 const bgGrid = new THREE.Mesh(gridGeometry, gridMaterial);
 bgGrid.position.z = -50;
