@@ -76,9 +76,48 @@ const bgRectGroup = new THREE.Group();
 bgRectGroup.visible = false;
 scene.add(bgRectGroup);
 
+function createRectTexture() {
+    const width = 4;
+    const height = 4;
+    const size = width * height;
+    const data = new Uint8Array(4 * size);
+
+    for (let i = 0; i < size; i++) {
+        const stride = i * 4;
+        if (Math.random() > 0.5) {
+            // Uniform Dark Blue
+            data[stride] = 0;
+            data[stride + 1] = 0;
+            data[stride + 2] = 64;
+            data[stride + 3] = 255;
+        } else {
+            // Transparent
+            data[stride] = 0;
+            data[stride + 1] = 0;
+            data[stride + 2] = 0;
+            data[stride + 3] = 0;
+        }
+    }
+
+    const texture = new THREE.DataTexture(data, width, height);
+    texture.needsUpdate = true;
+    texture.magFilter = THREE.NearestFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.wrapS = THREE.ClampToEdgeWrapping; // Stretch horizontally
+    texture.wrapT = THREE.RepeatWrapping;      // Tile vertically
+    return texture;
+}
+
 function spawnBgRect(initialX) {
+    // Random Size
+    const w = 40 + Math.random() * 60;
+    const h = 10 + Math.random() * 40;
+
+    const texture = createRectTexture();
+    texture.repeat.set(1, h / 4); // Tile vertically based on height
+
     const material = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(0, 0, 0.2), // Fixed Dark Blue
+        map: texture,
         transparent: true,
         opacity: 1,
         side: THREE.DoubleSide
@@ -86,9 +125,6 @@ function spawnBgRect(initialX) {
 
     const rect = new THREE.Mesh(bgRectGeometry, material);
     
-    // Random Size
-    const w = 40 + Math.random() * 60;
-    const h = 10 + Math.random() * 40;
     rect.scale.set(w, h, 1);
 
     // Position (Start Left, Move Right)
@@ -396,7 +432,7 @@ function animate() {
     requestAnimationFrame(animate);
 
     // Calculate orbit angles (5 degrees max = ~0.087 radians)
-    const maxAngle = 90 * (Math.PI / 180);
+    const maxAngle = 10 * (Math.PI / 180);
     
     // Move camera based on mouse position
     camera.position.x = cameraParams.distance * Math.sin(mouseX * maxAngle);
@@ -417,6 +453,7 @@ function animate() {
         rect.position.x += rect.userData.speed;
         if (rect.position.x > 175) {
             bgRectGroup.remove(rect);
+            if (rect.material.map) rect.material.map.dispose();
             rect.material.dispose();
             bgRects.splice(i, 1);
         }
