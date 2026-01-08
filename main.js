@@ -40,6 +40,40 @@ window.addEventListener('resize', () => {
     composer.setSize(window.innerWidth, window.innerHeight);
 });
 
+// Background Grid
+const gridGeometry = new THREE.BufferGeometry();
+const gridVertices = [];
+const gridRange = 600;
+const gridStep = 15;
+
+for (let x = -gridRange; x <= gridRange; x += gridStep) {
+    for (let y = -gridRange; y <= gridRange; y += gridStep) {
+        gridVertices.push(x, y, -50);
+    }
+}
+gridGeometry.setAttribute('position', new THREE.Float32BufferAttribute(gridVertices, 3));
+
+const gridCanvas = document.createElement('canvas');
+gridCanvas.width = 32;
+gridCanvas.height = 32;
+const gridCtx = gridCanvas.getContext('2d');
+gridCtx.fillStyle = '#FFFFFF';
+gridCtx.fillRect(15, 4, 2, 24); // Vertical
+gridCtx.fillRect(4, 15, 24, 2); // Horizontal
+const gridTexture = new THREE.CanvasTexture(gridCanvas);
+gridTexture.magFilter = THREE.NearestFilter;
+
+const gridMaterial = new THREE.PointsMaterial({
+    map: gridTexture,
+    color: 0xffff00,
+    size: 3,
+    transparent: true,
+    opacity: 0.4,
+    sizeAttenuation: true
+});
+const bgGrid = new THREE.Points(gridGeometry, gridMaterial);
+scene.add(bgGrid);
+
 // 2. Load Font & Create Text
 let rings = [];
 const loader = new FontLoader();
@@ -205,29 +239,31 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 
             // Start random patch flipping loop
             const glitchLoop = () => {
-                const ring = rings[Math.floor(Math.random() * rings.length)];
-                const tex = ring.material.map;
-                const data = tex.image.data;
-                const width = 4, height = 64;
+                for (let i = 0; i < 5; i++) {
+                    const ring = rings[Math.floor(Math.random() * rings.length)];
+                    const tex = ring.material.map;
+                    const data = tex.image.data;
+                    const width = 4, height = 64;
 
-                const cx = Math.floor(Math.random() * width);
-                const cy = Math.floor(Math.random() * height);
-                const w = Math.floor(Math.random() * 2);
-                const h = Math.floor(Math.random() * 5) + 2;
+                    const cx = Math.floor(Math.random() * width);
+                    const cy = Math.floor(Math.random() * height);
+                    const w = Math.floor(Math.random() * 2);
+                    const h = Math.floor(Math.random() * 5) + 2;
 
-                for (let x = cx - w; x <= cx + w; x++) {
-                    for (let y = cy - h; y <= cy + h; y++) {
-                        const py = (y + height * 2) % height;
-                        if (x >= 0 && x < width) {
-                            const idx = (py * width + x) * 4;
-                            // Swap Green (idx+1) and Blue (idx+2)
-                            const g = data[idx + 1];
-                            data[idx + 1] = data[idx + 2];
-                            data[idx + 2] = g;
+                    for (let x = cx - w; x <= cx + w; x++) {
+                        for (let y = cy - h; y <= cy + h; y++) {
+                            const py = (y + height * 2) % height;
+                            if (x >= 0 && x < width) {
+                                const idx = (py * width + x) * 4;
+                                // Swap Green (idx+1) and Blue (idx+2)
+                                const g = data[idx + 1];
+                                data[idx + 1] = data[idx + 2];
+                                data[idx + 2] = g;
+                            }
                         }
                     }
+                    tex.needsUpdate = true;
                 }
-                tex.needsUpdate = true;
                 setTimeout(glitchLoop, 1000 + Math.random() * 4000); // Randomly every 1-5s
             };
             glitchLoop();
