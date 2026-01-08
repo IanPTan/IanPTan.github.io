@@ -141,6 +141,7 @@ function spawnBgRect(initialX) {
 
 // 2. Load Font & Create Text
 let rings = [];
+let socialButtons = [];
 const loader = new FontLoader();
 loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (font) {
     const size = 1.5;
@@ -247,6 +248,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 
     scene.add(githubMesh);
     scene.add(linkedinMesh);
+    socialButtons.push(githubMesh, linkedinMesh);
 
     // Create Ring
     // Calculate total width for ring sizing
@@ -530,6 +532,8 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 // 3. Mouse Interaction
 let mouseX = 0;
 let mouseY = 0;
+let cursorState = 'default';
+const raycaster = new THREE.Raycaster();
 
 document.addEventListener('mousemove', (event) => {
     // Normalize mouse position between -1 and 1
@@ -550,6 +554,29 @@ function animate() {
     camera.position.z = cameraParams.distance * Math.cos(mouseX * maxAngle) * Math.cos(mouseY * maxAngle);
     
     camera.lookAt(0, 0, 0);
+
+    // Social Button Hover
+    let isHovering = false;
+    if (socialButtons.length > 0) {
+        raycaster.setFromCamera(new THREE.Vector2(mouseX, mouseY), camera);
+        const intersects = raycaster.intersectObjects(socialButtons);
+        if (intersects.length > 0) isHovering = true;
+
+        socialButtons.forEach(btn => {
+            const isHovered = intersects.find(i => i.object === btn);
+            const targetZ = isHovered ? 2.0 : 0.0;
+            btn.position.z += (targetZ - btn.position.z) * 0.15;
+        });
+    }
+
+    // Update Cursor State
+    if (isHovering && cursorState !== 'hover') {
+        document.body.style.cursor = `url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20transform%3D%22rotate(45%2012%2012)%22%3E%3Cpath%20d%3D%22M11%202h2v20h-2z%22%20fill%3D%22red%22%2F%3E%3Cpath%20d%3D%22M2%2011h20v2h-20z%22%20fill%3D%22red%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E') 24 24, auto`;
+        cursorState = 'hover';
+    } else if (!isHovering && cursorState !== 'default') {
+        document.body.style.cursor = `url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M11%202h2v20h-2z%22%20fill%3D%22red%22%2F%3E%3Cpath%20d%3D%22M2%2011h20v2h-20z%22%20fill%3D%22red%22%2F%3E%3C%2Fsvg%3E') 24 24, auto`;
+        cursorState = 'default';
+    }
 
     rings.forEach(ring => {
         ring.rotation.z += ring.userData.speed;
