@@ -41,7 +41,7 @@ window.addEventListener('resize', () => {
 });
 
 // Background Grid
-const gridGeometry = new THREE.PlaneGeometry(1200, 1200);
+const gridGeometry = new THREE.PlaneGeometry(300, 300);
 
 const gridCanvas = document.createElement('canvas');
 gridCanvas.width = 64;
@@ -55,13 +55,13 @@ const gridTexture = new THREE.CanvasTexture(gridCanvas);
 gridTexture.magFilter = THREE.NearestFilter;
 gridTexture.wrapS = THREE.RepeatWrapping;
 gridTexture.wrapT = THREE.RepeatWrapping;
-gridTexture.repeat.set(80, 80); // 1200 / 15 = 80 repeats
+gridTexture.repeat.set(20, 20); // 300 / 15 = 20 repeats
 
 const gridMaterial = new THREE.MeshBasicMaterial({
     map: gridTexture,
     color: 0x808000,
     transparent: true,
-    opacity: 0.4,
+    opacity: 0,
     depthWrite: false // Prevents the transparent parts from blocking objects behind
 });
 const bgGrid = new THREE.Mesh(gridGeometry, gridMaterial);
@@ -69,13 +69,50 @@ bgGrid.position.z = -50;
 bgGrid.visible = false;
 scene.add(bgGrid);
 
+// Background Floating Rectangles
+const bgRectGeometry = new THREE.PlaneGeometry(1, 1);
+const bgRects = [];
+const bgRectGroup = new THREE.Group();
+bgRectGroup.visible = false;
+scene.add(bgRectGroup);
+
+function spawnBgRect(initialX) {
+    const material = new THREE.MeshBasicMaterial({
+        color: new THREE.Color(0, 0, 0.2), // Fixed Dark Blue
+        transparent: true,
+        opacity: 1,
+        side: THREE.DoubleSide
+    });
+
+    const rect = new THREE.Mesh(bgRectGeometry, material);
+    
+    // Random Size
+    const w = 40 + Math.random() * 60;
+    const h = 10 + Math.random() * 40;
+    rect.scale.set(w, h, 1);
+
+    // Position (Start Left, Move Right)
+    rect.position.x = initialX !== undefined ? initialX : -175;
+    rect.position.y = (Math.random() - 0.5) * 150;
+    rect.position.z = -60 - Math.random() * 60; // Behind grid (-50)
+
+    rect.userData = { speed: 0.1 + Math.random() * 0.2 };
+    bgRectGroup.add(rect);
+    bgRects.push(rect);
+    return rect;
+}
+
 // 2. Load Font & Create Text
 let rings = [];
 const loader = new FontLoader();
 loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (font) {
     const size = 1.5;
     const spacing = 1.0; // Gap between words
-    const material = new THREE.MeshBasicMaterial({ color: 0x11ff11 });
+    const material = new THREE.MeshBasicMaterial({ 
+        color: 0x11ff11,
+        transparent: true,
+        opacity: 0
+    });
 
     // 1. Create "Ian"
     const shapes1 = font.generateShapes('Ian', size);
@@ -205,6 +242,14 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         easing: 'easeOutQuart' // Fast approach then stop
     });
 
+    // Intro: Text Fade In
+    anime({
+        targets: material,
+        opacity: 1,
+        duration: introDuration,
+        easing: 'linear'
+    });
+
     // Reveal Rings (Fade In)
     anime({
         targets: ringMaterial,
@@ -262,6 +307,32 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
                 setTimeout(glitchLoop, 1000 + Math.random() * 4000); // Randomly every 1-5s
             };
             glitchLoop();
+
+            // Reveal Grid & Background Rects (Moved here to ensure sync)
+            bgGrid.visible = true;
+            bgRectGroup.visible = true;
+
+            anime({
+                targets: gridMaterial,
+                opacity: 1,
+                duration: duration,
+                easing: easing
+            });
+
+            const introRects = [];
+            for (let i = 0; i < 30; i++) {
+                const rect = spawnBgRect((Math.random() - 0.5) * 350);
+                rect.userData.targetOpacity = rect.material.opacity;
+                rect.material.opacity = 0;
+                introRects.push(rect);
+            }
+            anime({
+                targets: introRects.map(r => r.material),
+                opacity: (el, i) => introRects[i].userData.targetOpacity,
+                duration: 800,
+                delay: (el, i) => i * 50,
+                easing: easing
+            });
         }
     });
 
@@ -273,16 +344,6 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         duration: duration,
         delay: delay + duration, // Wait for rotation to finish
         easing: easing
-    });
-
-    // Reveal Grid
-    anime({
-        targets: gridMaterial,
-        opacity: [0, 0.4],
-        duration: duration,
-        delay: delay + duration,
-        easing: easing,
-        begin: () => { bgGrid.visible = true; }
     });
 
     // Pop rings forward (Z-axis)
@@ -335,7 +396,7 @@ function animate() {
     requestAnimationFrame(animate);
 
     // Calculate orbit angles (5 degrees max = ~0.087 radians)
-    const maxAngle = 10 * (Math.PI / 180);
+    const maxAngle = 90 * (Math.PI / 180);
     
     // Move camera based on mouse position
     camera.position.x = cameraParams.distance * Math.sin(mouseX * maxAngle);
@@ -347,6 +408,19 @@ function animate() {
     rings.forEach(ring => {
         ring.rotation.z += ring.userData.speed;
     });
+
+    // Update Background Rects
+    if (bgRectGroup.visible && Math.random() < 0.02) spawnBgRect();
+
+    for (let i = bgRects.length - 1; i >= 0; i--) {
+        const rect = bgRects[i];
+        rect.position.x += rect.userData.speed;
+        if (rect.position.x > 175) {
+            bgRectGroup.remove(rect);
+            rect.material.dispose();
+            bgRects.splice(i, 1);
+        }
+    }
 
     composer.render();
 }
