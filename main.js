@@ -532,13 +532,19 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 // 3. Mouse Interaction
 let mouseX = 0;
 let mouseY = 0;
-let cursorState = 'default';
+let clientX = -100;
+let clientY = -100;
+let cursorRotation = 0;
+let cursorScale = 1;
+const customCursor = document.getElementById('custom-cursor');
 const raycaster = new THREE.Raycaster();
 
 document.addEventListener('mousemove', (event) => {
     // Normalize mouse position between -1 and 1
     mouseX = (event.clientX / window.innerWidth) * 2 - 1;
     mouseY = -(event.clientY / window.innerHeight) * 2 + 1;
+    clientX = event.clientX;
+    clientY = event.clientY;
 });
 
 // 4. Animation Loop
@@ -569,13 +575,14 @@ function animate() {
         });
     }
 
-    // Update Cursor State
-    if (isHovering && cursorState !== 'hover') {
-        document.body.style.cursor = `url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cg%20transform%3D%22rotate(45%2012%2012)%22%3E%3Cpath%20d%3D%22M11%202h2v20h-2z%22%20fill%3D%22red%22%2F%3E%3Cpath%20d%3D%22M2%2011h20v2h-20z%22%20fill%3D%22red%22%2F%3E%3C%2Fg%3E%3C%2Fsvg%3E') 24 24, auto`;
-        cursorState = 'hover';
-    } else if (!isHovering && cursorState !== 'default') {
-        document.body.style.cursor = `url('data:image/svg+xml;charset=utf-8,%3Csvg%20width%3D%2248%22%20height%3D%2248%22%20viewBox%3D%220%200%2024%2024%22%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Cpath%20d%3D%22M11%202h2v20h-2z%22%20fill%3D%22red%22%2F%3E%3Cpath%20d%3D%22M2%2011h20v2h-20z%22%20fill%3D%22red%22%2F%3E%3C%2Fsvg%3E') 24 24, auto`;
-        cursorState = 'default';
+    // Update Custom Cursor
+    const targetRotation = isHovering ? 45 : 0;
+    const targetScale = isHovering ? 1.2 : 1.0;
+    cursorRotation += (targetRotation - cursorRotation) * 0.15;
+    cursorScale += (targetScale - cursorScale) * 0.15;
+
+    if (customCursor) {
+        customCursor.style.transform = `translate(${clientX}px, ${clientY}px) rotate(${cursorRotation}deg) scale(${cursorScale})`;
     }
 
     rings.forEach(ring => {
