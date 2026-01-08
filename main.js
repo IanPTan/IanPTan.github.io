@@ -46,7 +46,7 @@ const loader = new FontLoader();
 loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (font) {
     const size = 1.5;
     const spacing = 1.0; // Gap between words
-    const material = new THREE.MeshBasicMaterial({ color: 0x22ff22 });
+    const material = new THREE.MeshBasicMaterial({ color: 0x11ff11 });
 
     // 1. Create "Ian"
     const shapes1 = font.generateShapes('Ian', size);
@@ -72,36 +72,77 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
     const ringGeometry = new THREE.RingGeometry((totalWidth * 0.6) - 0.1, (totalWidth * 0.6) + 0.1, 64);
-    const ringMaterial = new THREE.MeshBasicMaterial({ color: 0x22ff22, side: THREE.DoubleSide, transparent: true, opacity: 0 });
-    const segmentMaterial = new THREE.MeshBasicMaterial({ 
-        color: 0x2222ff, 
+
+    // Fix UVs to wrap texture around the ring (Strip mapping)
+    const posAttribute = ringGeometry.attributes.position;
+    const uvAttribute = ringGeometry.attributes.uv;
+    const thetaSegments = 64;
+    for (let i = 0; i < posAttribute.count; i++) {
+        const col = i % (thetaSegments + 1);
+        const row = Math.floor(i / (thetaSegments + 1));
+        // Map U to width (0..1), V to circumference (0..1)
+        uvAttribute.setXY(i, row, col / thetaSegments);
+    }
+    ringGeometry.attributes.uv.needsUpdate = true;
+
+    // Generate Glitch Texture
+    function createRingTexture(withGlitch) {
+        const width = 4, height = 64;
+        const size = width * height;
+        const data = new Uint8Array(4 * size);
+
+        // 1. Base Green (Pure Green)
+        for (let i = 0; i < size; i++) {
+            const stride = i * 4;
+            data[stride] = 0; data[stride + 1] = 255; data[stride + 2] = 0; data[stride + 3] = 255;
+        }
+
+        if (withGlitch) {
+            // 2. Generate Clumps (Patches of noisy blue)
+            const numClumps = 10; // ~50% coverage
+            for (let i = 0; i < numClumps; i++) {
+                const cx = Math.floor(Math.random() * width);
+                const cy = Math.floor(Math.random() * height);
+                const w = Math.floor(Math.random() * 2); // 0 or 1 radius (1 or 3 px wide)
+                const h = Math.floor(Math.random() * 5) + 2; // 2 to 6 radius (5 to 13 px tall)
+
+                for (let x = cx - w; x <= cx + w; x++) {
+                    for (let y = cy - h; y <= cy + h; y++) {
+                        // Wrap Y (circumference), Clamp X (width)
+                        const py = (y + height * 2) % height;
+                        if (x >= 0 && x < width) {
+                            // Noisy fill (85% chance to be blue inside clump)
+                            if (Math.random() > 0.15) {
+                                const idx = (py * width + x) * 4;
+                            // Blue (Pure Blue)
+                            data[idx] = 0; data[idx + 1] = 0; data[idx + 2] = 255;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        const tex = new THREE.DataTexture(data, width, height);
+        tex.needsUpdate = true;
+        tex.magFilter = THREE.NearestFilter; // Pixelated look
+        tex.minFilter = THREE.NearestFilter;
+        return tex;
+    }
+
+    const cleanTexture = createRingTexture(false);
+    const glitchTexture = createRingTexture(true);
+
+    const ringMaterial = new THREE.MeshBasicMaterial({ 
+        map: cleanTexture,
+        color: 0xffffff, // White so texture colors show true
         side: THREE.DoubleSide, 
         transparent: true, 
-        opacity: 0, 
-        depthWrite: false,
-        polygonOffset: true,
-        polygonOffsetFactor: -4,
-        polygonOffsetUnits: -4
+        opacity: 0 
     });
     
     const ringGroup = new THREE.Group();
-    const blueSegments = [];
     for (let i = 0; i < 3; i++) {
         const ring = new THREE.Mesh(ringGeometry, ringMaterial);
-        
-        // Add random blue segments
-        const numSegments = Math.floor(Math.random() * 4) + 2; 
-        for (let j = 0; j < numSegments; j++) {
-            const len = (Math.random() * 0.5) + 0.2;
-            const start = Math.random() * Math.PI * 2;
-            const segGeo = new THREE.RingGeometry((totalWidth * 0.6) - 0.11, (totalWidth * 0.6) + 0.11, 32, 1, start, len);
-            const segMesh = new THREE.Mesh(segGeo, segmentMaterial);
-            segMesh.position.z = 0.001; // Slightly above
-            segMesh.renderOrder = 1; // Force draw after ring
-            segMesh.visible = false;
-            blueSegments.push(segMesh);
-            ring.add(segMesh);
-        }
 
         ring.rotation.z = i * (Math.PI * 2 / 3);
         ring.userData = { speed: 0 };
@@ -149,6 +190,48 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         y: 0,
         duration: duration,
         delay: delay,
+        complete: function() {
+            // Assign unique textures to each ring for independent glitching
+            rings.forEach(ring => {
+                const tex = createRingTexture(true);
+                ring.material = new THREE.MeshBasicMaterial({
+                    map: tex,
+                    color: 0xffffff,
+                    side: THREE.DoubleSide,
+                    transparent: true,
+                    opacity: 1
+                });
+            });
+
+            // Start random patch flipping loop
+            const glitchLoop = () => {
+                const ring = rings[Math.floor(Math.random() * rings.length)];
+                const tex = ring.material.map;
+                const data = tex.image.data;
+                const width = 4, height = 64;
+
+                const cx = Math.floor(Math.random() * width);
+                const cy = Math.floor(Math.random() * height);
+                const w = Math.floor(Math.random() * 2);
+                const h = Math.floor(Math.random() * 5) + 2;
+
+                for (let x = cx - w; x <= cx + w; x++) {
+                    for (let y = cy - h; y <= cy + h; y++) {
+                        const py = (y + height * 2) % height;
+                        if (x >= 0 && x < width) {
+                            const idx = (py * width + x) * 4;
+                            // Swap Green (idx+1) and Blue (idx+2)
+                            const g = data[idx + 1];
+                            data[idx + 1] = data[idx + 2];
+                            data[idx + 2] = g;
+                        }
+                    }
+                }
+                tex.needsUpdate = true;
+                setTimeout(glitchLoop, 1000 + Math.random() * 4000); // Randomly every 1-5s
+            };
+            glitchLoop();
+        }
     });
 
     // Spread rings after rotation
@@ -159,18 +242,6 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         duration: duration,
         delay: delay + duration, // Wait for rotation to finish
         easing: easing
-    });
-
-    // Reveal Blue Segments (Fade In)
-    anime({
-        targets: segmentMaterial,
-        opacity: 1,
-        duration: 100,
-        delay: delay + duration,
-        easing: 'linear',
-        begin: function() {
-            blueSegments.forEach(s => s.visible = true);
-        }
     });
 
     // Pop rings forward (Z-axis)
