@@ -545,6 +545,37 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 });
 
 // 3. Mouse Interaction
+// Scroll & Camera Logic
+const scrollContainer = document.getElementById('scroll-container');
+const scrollState = {
+    current: 0,
+    target: 0,
+    ease: 0.05
+};
+
+// Define Camera Waypoints (Add more here for new sections)
+const waypoints = [
+    {
+        // Section 0: Front View (Start)
+        pos: new THREE.Vector3(0, 0, 12),
+        lookAt: new THREE.Vector3(0, 0, 0),
+        up: new THREE.Vector3(0, 1, 0)
+    },
+    {
+        // Section 1: Orbit Down 90 deg (Plane parallel to view)
+        // Moving to (0, -12, 0) looks along the Y axis.
+        // Z becomes the "Up" vector relative to the camera's new orientation.
+        pos: new THREE.Vector3(0, -12, 0.1), 
+        lookAt: new THREE.Vector3(0, 0, 0),
+        up: new THREE.Vector3(0, 0, 1)
+    }
+];
+
+scrollContainer.addEventListener('scroll', () => {
+    const maxScroll = scrollContainer.scrollHeight - window.innerHeight;
+    scrollState.target = scrollContainer.scrollTop / window.innerHeight;
+});
+
 let mouseX = 0;
 let mouseY = 0;
 let clientX = -100;
@@ -566,15 +597,39 @@ document.addEventListener('mousemove', (event) => {
 function animate() {
     requestAnimationFrame(animate);
 
-    // Calculate orbit angles (5 degrees max = ~0.087 radians)
-    const maxAngle = 10 * (Math.PI / 180);
+    // Smooth Scroll Interpolation
+    scrollState.current += (scrollState.target - scrollState.current) * scrollState.ease;
     
-    // Move camera based on mouse position
-    camera.position.x = cameraParams.distance * Math.sin(mouseX * maxAngle);
-    camera.position.y = cameraParams.distance * Math.sin(mouseY * maxAngle);
-    camera.position.z = cameraParams.distance * Math.cos(mouseX * maxAngle) * Math.cos(mouseY * maxAngle);
+    // Calculate Camera State based on Scroll
+    const progress = scrollState.current;
+    const index = Math.floor(progress);
+    const nextIndex = Math.min(index + 1, waypoints.length - 1);
+    const alpha = Math.max(0, Math.min(1, progress - index)); // Clamp 0-1
+
+    const wp1 = waypoints[Math.min(index, waypoints.length - 1)];
+    const wp2 = waypoints[nextIndex];
+
+    // Interpolate Position
+    // Note: We use cameraParams.distance for the Z of the first waypoint to keep the intro animation working
+    const p1 = wp1.pos.clone();
+    if (index === 0) p1.z = cameraParams.distance; 
     
-    camera.lookAt(0, 0, 0);
+    const currentPos = new THREE.Vector3().lerpVectors(p1, wp2.pos, alpha);
+    const currentLookAt = new THREE.Vector3().lerpVectors(wp1.lookAt, wp2.lookAt, alpha);
+    const currentUp = new THREE.Vector3().lerpVectors(wp1.up, wp2.up, alpha);
+
+    // Apply Mouse Parallax (Subtle)
+    const parallaxX = Math.sin(mouseX * 0.5) * 0.5;
+    const parallaxY = Math.sin(mouseY * 0.5) * 0.5;
+    
+    // Apply to camera
+    camera.position.copy(currentPos);
+    camera.position.x += parallaxX;
+    camera.position.y += parallaxY;
+    
+    camera.up.copy(currentUp);
+    camera.lookAt(currentLookAt);
+    
 
     // Social Button Hover
     let isHovering = false;

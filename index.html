@@ -6,8 +6,27 @@
     <title>Ian Tan</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #000; cursor: none; }
-        canvas { display: block; }
+        canvas { display: block; position: fixed; top: 0; left: 0; z-index: -1; }
         #overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: black; z-index: 100; pointer-events: none; }
+        
+        /* Scroll Container */
+        #scroll-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100vh;
+            overflow-y: scroll;
+            scroll-snap-type: y mandatory;
+            z-index: 10;
+        }
+        .section {
+            height: 100vh;
+            width: 100%;
+            scroll-snap-align: start;
+            position: relative;
+        }
+
         #custom-cursor {
             position: fixed;
             top: 0;
@@ -38,6 +57,10 @@
 
     <div id="overlay"></div>
     <div id="custom-cursor"></div>
-    <script type="module" src="./main.js?v=24"></script>
+    <div id="scroll-container">
+        <section class="section"></section> <!-- Intro / Front View -->
+        <section class="section"></section> <!-- Orbit Down / Parallel View -->
+    </div>
+    <script type="module" src="./main.js?v=25"></script>
 </body>
 </html>
