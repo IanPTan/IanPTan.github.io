@@ -250,6 +250,21 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     scene.add(linkedinMesh);
     socialButtons.push(githubMesh, linkedinMesh);
 
+    // Social Rings
+    const socialRingGeo = new THREE.RingGeometry(0.9, 1.0, 32);
+    const socialRingMat = new THREE.MeshBasicMaterial({
+        color: 0x11ff11,
+        transparent: true,
+        opacity: 0,
+        side: THREE.DoubleSide
+    });
+    const githubRing = new THREE.Mesh(socialRingGeo, socialRingMat);
+    const linkedinRing = new THREE.Mesh(socialRingGeo, socialRingMat);
+    githubRing.position.copy(githubMesh.position);
+    linkedinRing.position.copy(linkedinMesh.position);
+    scene.add(githubRing);
+    scene.add(linkedinRing);
+
     // Create Ring
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
@@ -450,7 +465,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
                 easing: easing,
                 complete: function() {
                     anime({
-                        targets: [scrollMaterial, githubMat, linkedinMat],
+                        targets: [scrollMaterial, githubMat, linkedinMat, socialRingMat],
                         opacity: 1,
                         duration: 1000,
                         easing: 'linear',
@@ -577,7 +592,7 @@ function animate() {
 
     // Update Custom Cursor
     const targetRotation = isHovering ? 45 : 0;
-    const targetScale = isHovering ? 1.2 : 1.0;
+    const targetScale = isHovering ? 2.0 : 1.0;
     cursorRotation += (targetRotation - cursorRotation) * 0.15;
     cursorScale += (targetScale - cursorScale) * 0.15;
 
