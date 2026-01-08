@@ -213,6 +213,41 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     scrollGroup.position.y = 2.0;
     scene.add(scrollGroup);
 
+    // 4. Social Buttons
+    const textureLoader = new THREE.TextureLoader();
+    const githubTex = textureLoader.load('./github.png');
+    const linkedinTex = textureLoader.load('./linkedin.png');
+
+    const iconGeo = new THREE.PlaneGeometry(1.6, 1.6);
+    const githubMat = new THREE.MeshBasicMaterial({ 
+        map: githubTex, 
+        color: 0xffffff,
+        transparent: true, 
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0 
+    });
+    const linkedinMat = new THREE.MeshBasicMaterial({ 
+        map: linkedinTex, 
+        color: 0xffffff,
+        transparent: true, 
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+        opacity: 0 
+    });
+
+    const githubMesh = new THREE.Mesh(iconGeo, githubMat);
+    const linkedinMesh = new THREE.Mesh(iconGeo, linkedinMat);
+
+    githubMesh.position.set(-1.5, -2.5, 0);
+    linkedinMesh.position.set(1.5, -2.5, 0);
+
+    githubMesh.userData = { url: 'https://github.com/ianptan' };
+    linkedinMesh.userData = { url: 'https://www.linkedin.com/in/ianptan' };
+
+    scene.add(githubMesh);
+    scene.add(linkedinMesh);
+
     // Create Ring
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
@@ -413,7 +448,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
                 easing: easing,
                 complete: function() {
                     anime({
-                        targets: scrollMaterial,
+                        targets: [scrollMaterial, githubMat, linkedinMat],
                         opacity: 1,
                         duration: 1000,
                         easing: 'linear',
@@ -430,6 +465,20 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
                     });
                 }
             });
+        }
+    });
+
+    // Click Listener for Buttons
+    const raycaster = new THREE.Raycaster();
+    window.addEventListener('click', (event) => {
+        const mouse = new THREE.Vector2(
+            (event.clientX / window.innerWidth) * 2 - 1,
+            -(event.clientY / window.innerHeight) * 2 + 1
+        );
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects([githubMesh, linkedinMesh]);
+        if (intersects.length > 0) {
+            window.open(intersects[0].object.userData.url, '_blank');
         }
     });
 
