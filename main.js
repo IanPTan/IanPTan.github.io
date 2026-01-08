@@ -171,6 +171,48 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     const mesh2 = new THREE.Mesh(geo2, material);
     scene.add(mesh2);
 
+    // 3. Create "scroll down"
+    const scrollSize = size * 0.33;
+    const shapes3 = font.generateShapes('scroll down', scrollSize);
+    const geo3 = new THREE.ShapeGeometry(shapes3);
+    geo3.computeBoundingBox();
+    const w3 = geo3.boundingBox.max.x - geo3.boundingBox.min.x;
+    const h3 = geo3.boundingBox.max.y - geo3.boundingBox.min.y;
+    geo3.translate(-0.5 * w3, -0.5 * h3, 0);
+
+    const scrollMaterial = new THREE.MeshBasicMaterial({ 
+        color: 0x11ff11,
+        transparent: true,
+        opacity: 0
+    });
+
+    const scrollGroup = new THREE.Group();
+    const textMesh = new THREE.Mesh(geo3, scrollMaterial);
+    scrollGroup.add(textMesh);
+
+    // Create Stacked V Icons
+    const vShapes = font.generateShapes('v', scrollSize);
+    const vGeo = new THREE.ShapeGeometry(vShapes);
+    vGeo.computeBoundingBox();
+    const vH = vGeo.boundingBox.max.y - vGeo.boundingBox.min.y;
+    vGeo.translate(-0.5 * (vGeo.boundingBox.max.x - vGeo.boundingBox.min.x), -0.5 * vH, 0);
+
+    const createIcon = (xPos) => {
+        const v1 = new THREE.Mesh(vGeo, scrollMaterial);
+        const v2 = new THREE.Mesh(vGeo, scrollMaterial);
+        v2.position.y = -vH * 0.65; // Stack below
+        const g = new THREE.Group();
+        g.add(v1, v2);
+        g.position.set(xPos, vH * 0.3, 0);
+        return g;
+    };
+
+    scrollGroup.add(createIcon(-(w3 / 2) - 0.8)); // Left Icon
+    scrollGroup.add(createIcon((w3 / 2) + 0.8));  // Right Icon
+
+    scrollGroup.position.y = 2.0;
+    scene.add(scrollGroup);
+
     // Create Ring
     // Calculate total width for ring sizing
     const totalWidth = w1 + w2 + spacing;
@@ -368,7 +410,25 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
                 opacity: (el, i) => introRects[i].userData.targetOpacity,
                 duration: 50,
                 delay: (el, i) => i * 3,
-                easing: easing
+                easing: easing,
+                complete: function() {
+                    anime({
+                        targets: scrollMaterial,
+                        opacity: 1,
+                        duration: 1000,
+                        easing: 'linear',
+                        complete: function() {
+                            anime({
+                                targets: scrollMaterial,
+                                opacity: 0,
+                                duration: 1000,
+                                direction: 'alternate',
+                                loop: true,
+                                easing: 'easeInOutQuad'
+                            });
+                        }
+                    });
+                }
             });
         }
     });
