@@ -626,17 +626,15 @@ function animate() {
     const currentLookAt = new THREE.Vector3().lerpVectors(wp1.lookAt, wp2.lookAt, alpha);
     const currentUp = new THREE.Vector3().lerpVectors(wp1.up, wp2.up, alpha);
 
-    // Apply Mouse Parallax (Subtle)
-    const parallaxX = Math.sin(mouseX * 0.5) * 0.5;
-    const parallaxY = Math.sin(mouseY * 0.5) * 0.5;
-    
     // Apply to camera
     camera.position.copy(currentPos);
-    camera.position.x += parallaxX;
-    camera.position.y += parallaxY;
-    
     camera.up.copy(currentUp);
     camera.lookAt(currentLookAt);
+
+    // Apply Mouse Rotation
+    const MAX_ANGLE = 5 * (Math.PI / 180);
+    camera.rotateX(mouseY * MAX_ANGLE);
+    camera.rotateY(-mouseX * MAX_ANGLE);
     
 
     // Social Button Hover
