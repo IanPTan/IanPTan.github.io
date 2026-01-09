@@ -150,6 +150,8 @@ function spawnBgRect(initialX) {
 // 2. Load Font & Create Text
 let rings = [];
 let socialButtons = [];
+let floatingElements = []; // Text and elements to move with scroll
+let introComplete = false; // Flag to enable scroll overrides
 const loader = new FontLoader();
 loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mono_regular.typeface.json', function (font) {
     const size = 1.5;
@@ -169,6 +171,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     geo1.translate(-0.5 * w1, -0.5 * (geo1.boundingBox.max.y - geo1.boundingBox.min.y), 0);
     const mesh1 = new THREE.Mesh(geo1, material);
     scene.add(mesh1);
+    floatingElements.push(mesh1);
 
     // 2. Create "Tan"
     const shapes2 = font.generateShapes('Tan', size);
@@ -179,6 +182,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     geo2.translate(-0.5 * w2, -0.5 * (geo2.boundingBox.max.y - geo2.boundingBox.min.y), 0);
     const mesh2 = new THREE.Mesh(geo2, material);
     scene.add(mesh2);
+    floatingElements.push(mesh2);
 
     // 3. Create "scroll down"
     const scrollSize = size * 0.33;
@@ -221,6 +225,7 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
 
     scrollGroup.position.y = 2.0;
     scene.add(scrollGroup);
+    floatingElements.push(scrollGroup);
 
     // 4. Social Buttons
     const textureLoader = new THREE.TextureLoader();
@@ -272,6 +277,10 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
     linkedinRing.position.copy(linkedinMesh.position);
     scene.add(githubRing);
     scene.add(linkedinRing);
+
+    // Link rings to buttons for syncing in animate loop
+    githubMesh.userData.ring = githubRing;
+    linkedinMesh.userData.ring = linkedinRing;
 
     // Create Ring
     // Calculate total width for ring sizing
@@ -523,7 +532,8 @@ loader.load('https://unpkg.com/three@0.160.0/examples/fonts/droid/droid_sans_mon
         z: (el, i) => i * 2,
         duration: duration,
         delay: delay + duration,
-        easing: easing
+        easing: easing,
+        complete: () => { introComplete = true; }
     });
 
     // Start continuous rotation (Fastest inner, slowest outer)
@@ -631,6 +641,23 @@ function animate() {
     camera.up.copy(currentUp);
     camera.lookAt(currentLookAt);
 
+    // Scroll Translation Effect (Rings & Text)
+    // Only apply after intro to prevent conflict
+    let contentZ = 0;
+    if (introComplete && rings.length === 3) {
+        const spread = scrollState.current * 2.0; // Distance factor
+        
+        // Smallest ring (0) moves furthest back
+        rings[0].position.z = 0 - spread * 2;
+        // Middle ring (1) moves back slightly less
+        rings[1].position.z = 2 - spread;
+        // Largest ring (2) stays at 4 (Intro position)
+
+        // Text follows smallest ring
+        contentZ = rings[0].position.z;
+        floatingElements.forEach(el => el.position.z = contentZ);
+    }
+
     // Apply Mouse Rotation
     const MAX_ANGLE = 5 * (Math.PI / 180);
     camera.rotateX(mouseY * MAX_ANGLE);
@@ -646,8 +673,15 @@ function animate() {
 
         socialButtons.forEach(btn => {
             const isHovered = intersects.find(i => i.object === btn);
-            const targetZ = isHovered ? 2.0 : 0.0;
+            // Base Z is dynamic now (follows contentZ)
+            const targetZ = contentZ + (isHovered ? 2.0 : 0.0);
             btn.position.z += (targetZ - btn.position.z) * 0.15;
+            
+            // Sync the decorative ring to the button
+            if (btn.userData.ring) {
+                btn.userData.ring.position.copy(btn.position);
+                btn.userData.ring.position.z = contentZ;
+            }
         });
     }
 
